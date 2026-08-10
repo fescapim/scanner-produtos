@@ -121,4 +121,156 @@
     function apiPost(action, params) {
       var body = Object.assign({ action: action, token: API_TOKEN }, params || {});
       return fetch(EXEC_URL, {
-        metho
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
+        body: JSON.stringify(body)
+      }).then(function (r) { return r.json(); });
+    }
+
+    // ---------- Câmera (fica ligada e visível o tempo todo) ----------
+    function startCamera() {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(function (s) {
+          stream = s;
+          video.srcObject = s;
+          video.play();
+          scanning = true;
+          setStatus('Aponte para o QR code...');
+          requestAnimationFrame(scanFrame);
+        })
+        .catch(function (err) {
+          setStatus('Não foi possível acessar a câmera: ' + err.message, 'error');
+        });
+    }
+
+    function scanFrame() {
+      if (!scanning) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        scanCanvas.width = video.videoWidth;
+        scanCanvas.height = video.videoHeight;
+        var ctx = scanCanvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+        var imageData = ctx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+        var code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code && code.data) {
+          onCodeDetected(code.data);
+          return;
+        }
+      }
+      requestAnimationFrame(scanFrame);
+    }
+
+    function buscarManual() {
+      var val = document.getElementById('manualCodeInput').value.trim();
+      if (!val) { setStatus('Digite um código.', 'error'); return; }
+      onCodeDetected(val);
+    }
+
+    function onCodeDetected(value) {
+      scanning = false;
+      setStatus('Buscando produto "' + value + '"...');
+      apiGet('findProductByCode', { code: value })
+        .then(function (res) {
+          if (!res.ok) {
+            setStatus(res.error + ' Tente novamente.', 'error');
+            scanning = true;
+            requestAnimationFrame(scanFrame);
+            return;
+          }
+          current = res.product;
+          showProductControls();
+        })
+        .catch(function (err) {
+          setStatus('Erro de rede: ' + err.message, 'error');
+          scanning = true;
+          requestAnimationFrame(scanFrame);
+        });
+    }
+
+    // ---------- Troca de painel (câmera nunca some) ----------
+    function showProductControls() {
+      document.getElementById('scanControls').style.display = 'none';
+      document.getElementById('productControls').style.display = 'block';
+      document.getElementById('prodNome').textContent = current.nome || '(sem nome)';
+      document.getElementById('prodMeta').textContent =
+        current.codProd + (current.categoria ? ' · ' + current.categoria : '');
+      setStatus('');
+      resetPhotoUi();
+    }
+
+    function backToScan() {
+      document.getElementById('productControls').style.display = 'none';
+      document.getElementById('scanControls').style.display = 'block';
+      resetPhotoUi();
+      setStatus('Aponte para o QR code...');
+      scanning = true;
+      requestAnimationFrame(scanFrame);
+    }
+
+    function resetPhotoUi() {
+      pendingBlob = null;
+      shot.style.display = 'none';
+      video.style.display = 'block';
+      document.getElementById('btnTakePhoto').style.display = 'block';
+      document.getElementById('btnSend').style.display = 'none';
+      document.getElementById('btnRetake').style.display = 'none';
+    }
+
+    function takePhoto() {
+      // Captura o frame atual da câmera (que está visível e ao vivo o tempo todo,
+      // então dá pra mirar antes de apertar o botão).
+      var canvas = document.createElement('canvas');
+      var maxDim = 1280;
+      var scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      pendingBlob = canvas.toDataURL('image/jpeg', 0.8);
+
+      shot.src = pendingBlob;
+      shot.style.display = 'block';
+      video.style.display = 'none';
+      document.getElementById('btnTakePhoto').style.display = 'none';
+      document.getElementById('btnSend').style.display = 'block';
+      document.getElementById('btnRetake').style.display = 'block';
+    }
+
+    function retakePhoto() {
+      resetPhotoUi();
+    }
+
+    function sendPhoto() {
+      if (!pendingBlob || !current) return;
+      var base64 = pendingBlob.split(',')[1];
+      document.getElementById('btnSend').disabled = true;
+      document.getElementById('btnRetake').disabled = true;
+      setStatus('Enviando foto...');
+
+      apiPost('uploadPhoto', { codProd: current.codProd, row: current.row, base64: base64 })
+        .then(function (res) {
+          document.getElementById('btnSend').disabled = false;
+          document.getElementById('btnRetake').disabled = false;
+          if (!res.ok) {
+            setStatus('Erro ao enviar: ' + res.error, 'error');
+            return;
+          }
+          setStatus('Foto enviada com sucesso!', 'success');
+          setTimeout(backToScan, 800);
+        })
+        .catch(function (err) {
+          document.getElementById('btnSend').disabled = false;
+          document.getElementById('btnRetake').disabled = false;
+          setStatus('Erro de rede: ' + err.message, 'error');
+        });
+    }
+
+    // start
+    if (EXEC_URL.indexOf('COLE_AQUI') !== -1) {
+      setStatus('Configuração pendente: defina EXEC_URL no código da página.', 'error');
+    } else {
+      startCamera();
+    }
+  </script>
+</body>
+</html>
