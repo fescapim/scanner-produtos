@@ -26,6 +26,7 @@
     border-radius: 10px;
     background: black;
     display: block;
+    margin-bottom: 12px;
   }
   #shot { display: none; }
   .status {
@@ -65,23 +66,27 @@
   <h1>Scanner de Produtos</h1>
   <div id="statusBox" class="status"></div>
 
-  <div id="scanCard" class="card">
+  <div class="card">
     <video id="video" autoplay playsinline muted></video>
     <canvas id="scanCanvas" style="display:none;"></canvas>
-    <p class="prod-meta" style="margin-top:10px;">Aponte para o QR code do produto. Ou digite o código:</p>
-    <input type="text" id="manualCodeInput" placeholder="ex: 1-3">
-    <button class="big btn-secondary" onclick="buscarManual()">Buscar por código digitado</button>
-  </div>
-
-  <div id="productCard" class="card" style="display:none;">
-    <p class="prod-nome" id="prodNome"></p>
-    <p class="prod-meta" id="prodMeta"></p>
-    <video id="videoShot" autoplay playsinline muted style="display:none;"></video>
     <img id="shot" />
-    <button class="big btn-primary" id="btnTakePhoto" onclick="takePhoto()">Tirar foto</button>
-    <button class="big btn-primary" id="btnSend" style="display:none;" onclick="sendPhoto()">Enviar</button>
-    <button class="big btn-secondary" id="btnRetake" style="display:none;" onclick="retakePhoto()">Tirar outra</button>
-    <button class="big btn-secondary" onclick="backToScan()">Voltar pro scanner</button>
+
+    <!-- Controles enquanto procura o QR -->
+    <div id="scanControls">
+      <p class="prod-meta">Aponte para o QR code do produto. Ou digite o código:</p>
+      <input type="text" id="manualCodeInput" placeholder="ex: 1-3">
+      <button class="big btn-secondary" onclick="buscarManual()">Buscar por código digitado</button>
+    </div>
+
+    <!-- Controles depois que o produto foi encontrado -->
+    <div id="productControls" style="display:none;">
+      <p class="prod-nome" id="prodNome"></p>
+      <p class="prod-meta" id="prodMeta"></p>
+      <button class="big btn-primary" id="btnTakePhoto" onclick="takePhoto()">Tirar foto</button>
+      <button class="big btn-primary" id="btnSend" style="display:none;" onclick="sendPhoto()">Enviar</button>
+      <button class="big btn-secondary" id="btnRetake" style="display:none;" onclick="retakePhoto()">Tirar outra</button>
+      <button class="big btn-secondary" onclick="backToScan()">Voltar pro scanner</button>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
@@ -92,6 +97,7 @@
     var API_TOKEN = 'her0NnA3_1QSh1sqj1VWEZmQFsdfAFJT';
 
     var video = document.getElementById('video');
+    var shot = document.getElementById('shot');
     var scanCanvas = document.getElementById('scanCanvas');
     var stream = null;
     var scanning = false;
@@ -115,154 +121,4 @@
     function apiPost(action, params) {
       var body = Object.assign({ action: action, token: API_TOKEN }, params || {});
       return fetch(EXEC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
-        body: JSON.stringify(body)
-      }).then(function (r) { return r.json(); });
-    }
-
-    // ---------- Câmera / scan ----------
-    function startCamera() {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        .then(function (s) {
-          stream = s;
-          video.srcObject = s;
-          video.play();
-          scanning = true;
-          setStatus('Aponte para o QR code...');
-          requestAnimationFrame(scanFrame);
-        })
-        .catch(function (err) {
-          setStatus('Não foi possível acessar a câmera: ' + err.message, 'error');
-        });
-    }
-
-    function scanFrame() {
-      if (!scanning) return;
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        scanCanvas.width = video.videoWidth;
-        scanCanvas.height = video.videoHeight;
-        var ctx = scanCanvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
-        var imageData = ctx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
-        var code = jsQR(imageData.data, imageData.width, imageData.height);
-        if (code && code.data) {
-          onCodeDetected(code.data);
-          return;
-        }
-      }
-      requestAnimationFrame(scanFrame);
-    }
-
-    function buscarManual() {
-      var val = document.getElementById('manualCodeInput').value.trim();
-      if (!val) { setStatus('Digite um código.', 'error'); return; }
-      onCodeDetected(val);
-    }
-
-    function onCodeDetected(value) {
-      scanning = false;
-      setStatus('Buscando produto "' + value + '"...');
-      apiGet('findProductByCode', { code: value })
-        .then(function (res) {
-          if (!res.ok) {
-            setStatus(res.error + ' Tente novamente.', 'error');
-            scanning = true;
-            requestAnimationFrame(scanFrame);
-            return;
-          }
-          current = res.product;
-          showProductCard();
-        })
-        .catch(function (err) {
-          setStatus('Erro de rede: ' + err.message, 'error');
-          scanning = true;
-          requestAnimationFrame(scanFrame);
-        });
-    }
-
-    // ---------- Card do produto / foto ----------
-    function showProductCard() {
-      document.getElementById('scanCard').style.display = 'none';
-      document.getElementById('productCard').style.display = 'block';
-      document.getElementById('prodNome').textContent = current.nome || '(sem nome)';
-      document.getElementById('prodMeta').textContent =
-        current.codProd + (current.categoria ? ' · ' + current.categoria : '');
-      setStatus('');
-      resetPhotoUi();
-    }
-
-    function backToScan() {
-      document.getElementById('productCard').style.display = 'none';
-      document.getElementById('scanCard').style.display = 'block';
-      setStatus('Aponte para o QR code...');
-      scanning = true;
-      requestAnimationFrame(scanFrame);
-    }
-
-    function resetPhotoUi() {
-      pendingBlob = null;
-      document.getElementById('shot').style.display = 'none';
-      document.getElementById('btnTakePhoto').style.display = 'block';
-      document.getElementById('btnSend').style.display = 'none';
-      document.getElementById('btnRetake').style.display = 'none';
-    }
-
-    function takePhoto() {
-      // Reaproveita o frame atual da câmera ao vivo (já em stream) pra tirar a foto,
-      // sem precisar reabrir a câmera do sistema.
-      var canvas = document.createElement('canvas');
-      var maxDim = 1280;
-      var scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
-      canvas.width = Math.round(video.videoWidth * scale);
-      canvas.height = Math.round(video.videoHeight * scale);
-      var ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      pendingBlob = canvas.toDataURL('image/jpeg', 0.8);
-
-      var shot = document.getElementById('shot');
-      shot.src = pendingBlob;
-      shot.style.display = 'block';
-      document.getElementById('btnTakePhoto').style.display = 'none';
-      document.getElementById('btnSend').style.display = 'block';
-      document.getElementById('btnRetake').style.display = 'block';
-    }
-
-    function retakePhoto() {
-      resetPhotoUi();
-    }
-
-    function sendPhoto() {
-      if (!pendingBlob || !current) return;
-      var base64 = pendingBlob.split(',')[1];
-      document.getElementById('btnSend').disabled = true;
-      document.getElementById('btnRetake').disabled = true;
-      setStatus('Enviando foto...');
-
-      apiPost('uploadPhoto', { codProd: current.codProd, row: current.row, base64: base64 })
-        .then(function (res) {
-          document.getElementById('btnSend').disabled = false;
-          document.getElementById('btnRetake').disabled = false;
-          if (!res.ok) {
-            setStatus('Erro ao enviar: ' + res.error, 'error');
-            return;
-          }
-          setStatus('Foto enviada com sucesso!', 'success');
-          setTimeout(backToScan, 800);
-        })
-        .catch(function (err) {
-          document.getElementById('btnSend').disabled = false;
-          document.getElementById('btnRetake').disabled = false;
-          setStatus('Erro de rede: ' + err.message, 'error');
-        });
-    }
-
-    // start
-    if (EXEC_URL.indexOf('COLE_AQUI') !== -1) {
-      setStatus('Configuração pendente: defina EXEC_URL no código da página.', 'error');
-    } else {
-      startCamera();
-    }
-  </script>
-</body>
-</html>
+        metho
