@@ -2,275 +2,413 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Scanner de Produtos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="google" content="notranslate">
+<title>Fotos de Produtos</title>
 <style>
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
   body {
     font-family: -apple-system, Roboto, Arial, sans-serif;
-    margin: 0;
-    padding: 16px;
     background: #f4f4f5;
     color: #18181b;
+    padding: 12px 12px 32px;
+    max-width: 560px;
+    margin: 0 auto;
   }
-  h1 { font-size: 18px; margin: 0 0 12px; }
-  .card {
-    background: white;
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    margin-bottom: 16px;
+  [hidden] { display: none !important; }
+
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .top h1 { font-size: 17px; margin: 0; }
+  .pill { background: #18181b; color: #fff; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+
+  .steps { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0 0 10px; }
+  .steps li {
+    flex: 1; text-align: center; font-size: 12px; font-weight: 700;
+    padding: 8px 4px; border-radius: 8px; background: #e4e4e7; color: #71717a;
   }
-  video, #shot {
-    width: 100%;
-    border-radius: 10px;
-    background: black;
-    display: block;
-    margin-bottom: 12px;
-  }
+  .steps li.on { background: #16a34a; color: #fff; }
+  .steps li.done { background: #bbf7d0; color: #166534; }
+
+  .msg { min-height: 20px; font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+  .msg.info { color: #52525b; }
+  .msg.error { color: #dc2626; }
+  .msg.ok { color: #16a34a; }
+
+  .camwrap { position: relative; background: #000; border-radius: 14px; overflow: hidden; }
+  video, #shot { display: block; width: 100%; max-height: 52vh; object-fit: contain; background: #000; }
   #shot { display: none; }
-  .status {
-    font-size: 13px;
-    color: #71717a;
-    min-height: 18px;
-    margin: 8px 0;
+  .guide {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    border: 3px solid #fff; border-radius: 14px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+    pointer-events: none;
   }
-  .status.error { color: #dc2626; }
-  .status.success { color: #16a34a; }
+  .guide::before, .guide::after {
+    content: ""; position: absolute; width: 26px; height: 26px; border: 5px solid #22c55e;
+  }
+  .guide::before { top: -4px; left: -4px; border-right: 0; border-bottom: 0; border-radius: 12px 0 0 0; }
+  .guide::after { bottom: -4px; right: -4px; border-left: 0; border-top: 0; border-radius: 0 0 12px 0; }
+  .flash {
+    position: absolute; right: 10px; top: 10px; width: 46px; height: 46px; border-radius: 50%;
+    border: none; background: rgba(0,0,0,0.55); color: #fff; font-size: 22px;
+  }
+  .flash.on { background: #facc15; color: #000; }
+  .camhint {
+    position: absolute; left: 0; right: 0; bottom: 8px; text-align: center;
+    color: #fff; font-size: 13px; font-weight: 600; text-shadow: 0 1px 3px #000;
+    pointer-events: none;
+  }
+
+  .card { background: #fff; border-radius: 14px; padding: 14px; margin-top: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .pname { font-size: 18px; font-weight: 800; margin: 0 0 2px; }
+  .pmeta { font-size: 13px; color: #52525b; margin: 0 0 4px; }
+  .warn { font-size: 13px; color: #b45309; background: #fef3c7; padding: 6px 10px; border-radius: 8px; margin-top: 8px; }
+
   button.big {
-    width: 100%;
-    padding: 16px;
-    font-size: 16px;
-    font-weight: 600;
-    border: none;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    cursor: pointer;
+    display: block; width: 100%; padding: 17px; font-size: 17px; font-weight: 700;
+    border: none; border-radius: 12px; margin-top: 10px; cursor: pointer;
   }
-  .btn-primary { background: #16a34a; color: white; }
-  .btn-secondary { background: #e4e4e7; color: #18181b; }
-  .btn-primary:disabled, .btn-secondary:disabled { opacity: 0.5; }
-  .prod-nome { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
-  .prod-meta { font-size: 13px; color: #52525b; margin: 0 0 12px; }
-  input[type=text] {
-    width: 100%;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #d4d4d8;
-    margin-bottom: 10px;
-    font-size: 16px;
+  .go { background: #16a34a; color: #fff; }
+  .alt { background: #e4e4e7; color: #18181b; }
+  .shoot { background: #16a34a; color: #fff; font-size: 19px; padding: 20px; }
+  button:disabled { opacity: .5; }
+
+  input[type=search], input[type=text] {
+    width: 100%; padding: 14px; font-size: 17px; border: 1px solid #d4d4d8; border-radius: 12px;
   }
+  .results { margin: 10px 0 0; padding: 0; list-style: none; max-height: 55vh; overflow-y: auto; }
+  .results li {
+    background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.1);
+  }
+  .results li b { display: block; font-size: 15px; }
+  .results li span { font-size: 12px; color: #71717a; }
+  .results li.extra { background: #dbeafe; }
+  .small { font-size: 12px; color: #71717a; margin: 8px 0 0; }
 </style>
 </head>
 <body>
-  <h1>Scanner de Produtos</h1>
-  <div id="statusBox" class="status"></div>
 
+<div class="top">
+  <h1>📦 Fotos de Produtos</h1>
+  <span class="pill" id="counter">0 enviadas</span>
+</div>
+
+<ol class="steps">
+  <li id="st1" class="on">1 · Ler QR</li>
+  <li id="st2">2 · Foto</li>
+  <li id="st3">3 · Enviar</li>
+</ol>
+
+<div class="msg info" id="msg"></div>
+
+<!-- Câmera (some só quando estiver buscando por nome) -->
+<div class="camwrap" id="camwrap">
+  <video id="video" autoplay playsinline muted></video>
+  <img id="shot" alt="">
+  <div class="guide" id="guide"></div>
+  <button class="flash" id="btnFlash" hidden>🔦</button>
+  <div class="camhint" id="camhint">Coloque UM QR dentro do quadro</div>
+</div>
+<canvas id="scanCanvas" hidden></canvas>
+
+<!-- Estado: lendo QR -->
+<section id="panelScan">
+  <button class="big alt" id="btnOpenSearch">🔎 Buscar por nome / código / lista</button>
+  <p class="small">O QR é lido sozinho assim que entrar no quadro. Sem QR na peça? Use o botão acima.</p>
+</section>
+
+<!-- Estado: buscando por nome -->
+<section id="panelSearch" hidden>
+  <input type="search" id="q" placeholder="Digite nome ou código…" autocomplete="off">
+  <ul class="results" id="results"></ul>
+  <button class="big alt" id="btnCloseSearch">📷 Voltar para a câmera</button>
+</section>
+
+<!-- Estado: produto escolhido -->
+<section id="panelProduct" hidden>
   <div class="card">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="scanCanvas" style="display:none;"></canvas>
-    <img id="shot" />
-
-    <!-- Controles enquanto procura o QR -->
-    <div id="scanControls">
-      <p class="prod-meta">Aponte para o QR code do produto. Ou digite o código:</p>
-      <input type="text" id="manualCodeInput" placeholder="ex: 1-3">
-      <button class="big btn-secondary" onclick="buscarManual()">Buscar por código digitado</button>
-    </div>
-
-    <!-- Controles depois que o produto foi encontrado -->
-    <div id="productControls" style="display:none;">
-      <p class="prod-nome" id="prodNome"></p>
-      <p class="prod-meta" id="prodMeta"></p>
-      <button class="big btn-primary" id="btnTakePhoto" onclick="takePhoto()">Tirar foto</button>
-      <button class="big btn-primary" id="btnSend" style="display:none;" onclick="sendPhoto()">Enviar</button>
-      <button class="big btn-secondary" id="btnRetake" style="display:none;" onclick="retakePhoto()">Tirar outra</button>
-      <button class="big btn-secondary" onclick="backToScan()">Voltar pro scanner</button>
-    </div>
+    <p class="pname" id="pname"></p>
+    <p class="pmeta" id="pmeta"></p>
+    <div class="warn" id="pwarn" hidden>Este produto já tem foto — a nova vai substituir.</div>
   </div>
+  <button class="big shoot" id="btnShoot">📸 Tirar foto</button>
+  <button class="big alt" id="btnChange">↩️ Trocar de produto</button>
+</section>
 
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <script>
-    // ---------- Configuração ----------
-    // Cole aqui a URL do seu Web App do Apps Script (termina em /exec).
-    var EXEC_URL = 'https://script.google.com/macros/s/AKfycbyL586xcIO3oXl2i0GnhAy1a5te94ZJDDUCY2ZpOjOtCzFg6icYy7XJxyp42u7A_2GBYg/exec';
-    var API_TOKEN = 'her0NnA3_1QSh1sqj1VWEZmQFsdfAFJT';
+<!-- Estado: revisando a foto -->
+<section id="panelReview" hidden>
+  <div class="card">
+    <p class="pname" id="rname"></p>
+    <p class="pmeta" id="rmeta"></p>
+  </div>
+  <button class="big go" id="btnSend">✅ Enviar foto</button>
+  <button class="big alt" id="btnRetake">🔄 Refazer</button>
+</section>
 
-    var video = document.getElementById('video');
-    var shot = document.getElementById('shot');
-    var scanCanvas = document.getElementById('scanCanvas');
-    var stream = null;
-    var scanning = false;
-    var current = null; // {row, codProd, nome, categoria}
-    var pendingBlob = null;
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+  // ---------- Configuração ----------
+  var EXEC_URL = 'https://script.google.com/macros/s/AKfycbyL586xcIO3oXl2i0GnhAy1a5te94ZJDDUCY2ZpOjOtCzFg6icYy7XJxyp42u7A_2GBYg/exec';
+  var API_TOKEN = 'her0NnA3_1QSh1sqj1VWEZmQFsdfAFJT';
 
-    function setStatus(msg, cls) {
-      var el = document.getElementById('statusBox');
-      el.textContent = msg || '';
-      el.className = 'status' + (cls ? ' ' + cls : '');
-    }
+  var $ = function (id) { return document.getElementById(id); };
+  var video = $('video'), shot = $('shot'), guide = $('guide'), scanCanvas = $('scanCanvas');
 
-    function apiGet(action, params) {
-      var url = EXEC_URL + '?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent(API_TOKEN);
-      Object.keys(params || {}).forEach(function (k) {
-        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-      });
-      return fetch(url).then(function (r) { return r.json(); });
-    }
+  var state = 'scan';        // scan | search | product | review
+  var source = 'scan';       // de onde veio o produto: 'scan' ou 'list'
+  var current = null;        // {row, codProd, nome, categoria, urlAtual?}
+  var pendingImg = null;     // dataURL da foto tirada
+  var pending = null;        // lista de pendentes (cache)
+  var sent = 0;
+  var videoTrack = null, torchOn = false, busy = false;
+  var msgTimer = null;
 
-    function apiPost(action, params) {
-      var body = Object.assign({ action: action, token: API_TOKEN }, params || {});
+  // ---------- util ----------
+  function say(text, kind, ms) {
+    var el = $('msg');
+    el.textContent = text || '';
+    el.className = 'msg ' + (kind || 'info');
+    clearTimeout(msgTimer);
+    if (ms) msgTimer = setTimeout(function () { el.textContent = ''; }, ms);
+  }
+  function buzz(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+
+  function api(action, params, post) {
+    var p = Object.assign({ action: action, token: API_TOKEN }, params || {});
+    if (post) {
       return fetch(EXEC_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
-        body: JSON.stringify(body)
+        body: JSON.stringify(p)
       }).then(function (r) { return r.json(); });
     }
+    var qs = Object.keys(p).map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]); }).join('&');
+    return fetch(EXEC_URL + '?' + qs).then(function (r) { return r.json(); });
+  }
 
-    // ---------- Câmera (fica ligada e visível o tempo todo) ----------
-    function startCamera() {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        .then(function (s) {
-          stream = s;
-          video.srcObject = s;
-          video.play();
-          scanning = true;
-          setStatus('Aponte para o QR code...');
-          requestAnimationFrame(scanFrame);
-        })
-        .catch(function (err) {
-          setStatus('Não foi possível acessar a câmera: ' + err.message, 'error');
-        });
+  // ---------- máquina de estados ----------
+  function setState(s) {
+    state = s;
+    $('panelScan').hidden = s !== 'scan';
+    $('panelSearch').hidden = s !== 'search';
+    $('panelProduct').hidden = s !== 'product';
+    $('panelReview').hidden = s !== 'review';
+    $('camwrap').hidden = s === 'search';
+
+    var reviewing = s === 'review';
+    shot.style.display = reviewing ? 'block' : 'none';
+    video.style.display = reviewing ? 'none' : 'block';
+    guide.hidden = s !== 'scan';
+    $('camhint').hidden = s !== 'scan';
+
+    $('st1').className = s === 'scan' || s === 'search' ? 'on' : 'done';
+    $('st2').className = s === 'product' ? 'on' : (s === 'review' ? 'done' : '');
+    $('st3').className = s === 'review' ? 'on' : '';
+
+    if (s === 'scan') { say('Aponte para o QR do produto…', 'info'); scheduleScan(); }
+    if (s === 'product') say('Produto encontrado. Enquadre e toque em “Tirar foto”.', 'ok');
+    if (s === 'review') say('Confira a foto e envie.', 'info');
+    sizeGuide();
+  }
+
+  // ---------- câmera ----------
+  function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      say('Este navegador não permite usar a câmera. Abra no Chrome do celular.', 'error');
+      return;
     }
-
-    function scanFrame() {
-      if (!scanning) return;
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        scanCanvas.width = video.videoWidth;
-        scanCanvas.height = video.videoHeight;
-        var ctx = scanCanvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
-        var imageData = ctx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
-        var code = jsQR(imageData.data, imageData.width, imageData.height);
-        if (code && code.data) {
-          onCodeDetected(code.data);
-          return;
-        }
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    }).then(function (stream) {
+      video.srcObject = stream;
+      video.play();
+      videoTrack = stream.getVideoTracks()[0];
+      var caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+      if (caps.torch) $('btnFlash').hidden = false;
+      video.addEventListener('playing', sizeGuide);
+      video.addEventListener('loadedmetadata', sizeGuide);
+      setState('scan');
+    }).catch(function (err) {
+      var n = err && err.name;
+      if (n === 'NotAllowedError' || n === 'SecurityError') {
+        say('Câmera bloqueada. Toque no cadeado ao lado do endereço → Permissões → Câmera → Permitir, e recarregue a página.', 'error');
+      } else if (n === 'NotReadableError') {
+        say('A câmera está em uso por outro app/aba. Feche os outros e recarregue.', 'error');
+      } else {
+        say('Não consegui abrir a câmera: ' + (err && err.message), 'error');
       }
-      requestAnimationFrame(scanFrame);
+    });
+  }
+
+  function sizeGuide() {
+    if (!video.videoWidth) return;
+    var cw = $('camwrap').clientWidth, ch = video.clientHeight || $('camwrap').clientHeight;
+    if (!cw || !ch) return;
+    var k = Math.min(cw / video.videoWidth, ch / video.videoHeight);
+    var side = Math.round(Math.min(video.videoWidth * k, video.videoHeight * k) * 0.68);
+    guide.style.width = side + 'px';
+    guide.style.height = side + 'px';
+  }
+  window.addEventListener('resize', sizeGuide);
+
+  $('btnFlash').addEventListener('click', function () {
+    if (!videoTrack) return;
+    torchOn = !torchOn;
+    videoTrack.applyConstraints({ advanced: [{ torch: torchOn }] }).then(function () {
+      $('btnFlash').className = 'flash' + (torchOn ? ' on' : '');
+    }).catch(function () { torchOn = !torchOn; say('Este celular não deixou controlar o flash.', 'error', 3000); });
+  });
+
+  // ---------- leitura do QR (só o quadro central, ~8x por segundo) ----------
+  var scanTimer = null;
+  function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(scanTick, 130); }
+
+  function scanTick() {
+    if (state !== 'scan') return;
+    if (busy || video.readyState < 2 || !video.videoWidth || typeof jsQR !== 'function') { scheduleScan(); return; }
+
+    var vw = video.videoWidth, vh = video.videoHeight;
+    var side = Math.floor(Math.min(vw, vh) * 0.68);
+    var sx = Math.floor((vw - side) / 2), sy = Math.floor((vh - side) / 2);
+    var out = Math.min(side, 640);
+    scanCanvas.width = out; scanCanvas.height = out;
+    var ctx = scanCanvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, sx, sy, side, side, 0, 0, out, out);
+    var img = ctx.getImageData(0, 0, out, out);
+    var code = jsQR(img.data, out, out, { inversionAttempts: 'dontInvert' });
+    if (code && code.data) { buzz(60); lookup(code.data, 'scan'); return; }
+    scheduleScan();
+  }
+
+  // ---------- localizar produto ----------
+  function lookup(value, from) {
+    busy = true;
+    say('Procurando “' + value + '”…', 'info');
+    api('findProductByCode', { code: value }).then(function (res) {
+      busy = false;
+      if (!res.ok) {
+        say(res.error, 'error', 4000);
+        if (state === 'scan') setTimeout(scheduleScan, 1500);
+        return;
+      }
+      pick(res.product, from);
+    }).catch(function (e) {
+      busy = false;
+      say('Sem conexão com a planilha: ' + e.message, 'error', 4000);
+      if (state === 'scan') setTimeout(scheduleScan, 1500);
+    });
+  }
+
+  function pick(p, from) {
+    current = p; source = from;
+    $('pname').textContent = p.nome || '(sem nome)';
+    $('pmeta').textContent = p.codProd + (p.categoria ? ' · ' + p.categoria : '');
+    $('pwarn').hidden = !p.urlAtual;
+    setState('product');
+  }
+
+  // ---------- busca por nome / lista de pendentes ----------
+  function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+
+  function openSearch() {
+    setState('search');
+    say('', 'info');
+    $('q').value = '';
+    if (pending) { renderResults(); $('q').focus(); return; }
+    say('Carregando lista de produtos sem foto…', 'info');
+    api('getPendingProducts').then(function (res) {
+      if (!res.ok) { say(res.error, 'error'); return; }
+      pending = res.products || [];
+      say(pending.length + ' produtos sem foto.', 'info', 3000);
+      renderResults();
+    }).catch(function (e) { say('Sem conexão: ' + e.message, 'error'); });
+  }
+
+  function renderResults() {
+    var raw = $('q').value.trim();
+    var q = norm(raw);
+    var list = (pending || []).filter(function (p) {
+      return !q || norm(p.nome).indexOf(q) !== -1 || norm(p.codProd).indexOf(q) !== -1 || norm(p.categoria).indexOf(q) !== -1;
+    });
+    var ul = $('results');
+    ul.innerHTML = '';
+
+    if (raw) {
+      var extra = document.createElement('li');
+      extra.className = 'extra';
+      extra.innerHTML = '<b></b><span>Procurar este código na planilha (inclui produtos que já têm foto)</span>';
+      extra.firstChild.textContent = '🔎 Código “' + raw + '”';
+      extra.addEventListener('click', function () { lookup(raw, 'list'); });
+      ul.appendChild(extra);
     }
-
-    function buscarManual() {
-      var val = document.getElementById('manualCodeInput').value.trim();
-      if (!val) { setStatus('Digite um código.', 'error'); return; }
-      onCodeDetected(val);
+    list.slice(0, 60).forEach(function (p) {
+      var li = document.createElement('li');
+      li.innerHTML = '<b></b><span></span>';
+      li.firstChild.textContent = p.nome || '(sem nome)';
+      li.lastChild.textContent = p.codProd + (p.categoria ? ' · ' + p.categoria : '');
+      li.addEventListener('click', function () { pick(p, 'list'); });
+      ul.appendChild(li);
+    });
+    if (list.length > 60) {
+      var more = document.createElement('li');
+      more.innerHTML = '<span>Mostrando 60 de ' + list.length + '. Digite para filtrar.</span>';
+      ul.appendChild(more);
     }
+  }
+  $('q').addEventListener('input', renderResults);
+  $('btnOpenSearch').addEventListener('click', openSearch);
+  $('btnCloseSearch').addEventListener('click', function () { setState('scan'); });
 
-    function onCodeDetected(value) {
-      scanning = false;
-      setStatus('Buscando produto "' + value + '"...');
-      apiGet('findProductByCode', { code: value })
-        .then(function (res) {
-          if (!res.ok) {
-            setStatus(res.error + ' Tente novamente.', 'error');
-            scanning = true;
-            requestAnimationFrame(scanFrame);
-            return;
-          }
-          current = res.product;
-          showProductControls();
-        })
-        .catch(function (err) {
-          setStatus('Erro de rede: ' + err.message, 'error');
-          scanning = true;
-          requestAnimationFrame(scanFrame);
-        });
-    }
+  // ---------- foto ----------
+  $('btnShoot').addEventListener('click', function () {
+    var vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw) { say('A câmera ainda não está pronta.', 'error', 2500); return; }
+    var k = Math.min(1, 1600 / Math.max(vw, vh));
+    var c = document.createElement('canvas');
+    c.width = Math.round(vw * k); c.height = Math.round(vh * k);
+    c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+    pendingImg = c.toDataURL('image/jpeg', 0.85);
+    shot.src = pendingImg;
+    $('rname').textContent = current.nome || '(sem nome)';
+    $('rmeta').textContent = current.codProd + ' · Ficou boa? Se estiver escura ou tremida, refaça.';
+    setState('review');
+  });
 
-    // ---------- Troca de painel (câmera nunca some) ----------
-    function showProductControls() {
-      document.getElementById('scanControls').style.display = 'none';
-      document.getElementById('productControls').style.display = 'block';
-      document.getElementById('prodNome').textContent = current.nome || '(sem nome)';
-      document.getElementById('prodMeta').textContent =
-        current.codProd + (current.categoria ? ' · ' + current.categoria : '');
-      setStatus('');
-      resetPhotoUi();
-    }
+  $('btnRetake').addEventListener('click', function () { pendingImg = null; setState('product'); });
 
-    function backToScan() {
-      document.getElementById('productControls').style.display = 'none';
-      document.getElementById('scanControls').style.display = 'block';
-      resetPhotoUi();
-      setStatus('Aponte para o QR code...');
-      scanning = true;
-      requestAnimationFrame(scanFrame);
-    }
+  $('btnChange').addEventListener('click', function () {
+    current = null;
+    if (source === 'list') openSearch(); else setState('scan');
+  });
 
-    function resetPhotoUi() {
-      pendingBlob = null;
-      shot.style.display = 'none';
-      video.style.display = 'block';
-      document.getElementById('btnTakePhoto').style.display = 'block';
-      document.getElementById('btnSend').style.display = 'none';
-      document.getElementById('btnRetake').style.display = 'none';
-    }
+  $('btnSend').addEventListener('click', function () {
+    if (!pendingImg || !current) return;
+    var btn = $('btnSend'), retake = $('btnRetake');
+    btn.disabled = true; retake.disabled = true;
+    say('Enviando…', 'info');
+    api('uploadPhoto', {
+      codProd: current.codProd, row: current.row, base64: pendingImg.split(',')[1]
+    }, true).then(function (res) {
+      btn.disabled = false; retake.disabled = false;
+      if (!res.ok) { say('Erro ao enviar: ' + res.error, 'error'); return; }
+      sent++;
+      $('counter').textContent = sent + (sent === 1 ? ' enviada' : ' enviadas');
+      if (pending) pending = pending.filter(function (p) { return p.row !== current.row; });
+      buzz([80, 60, 80]);
+      var nome = current.nome;
+      pendingImg = null; current = null;
+      if (source === 'list') { openSearch(); } else { setState('scan'); }
+      say('✔ Foto de “' + nome + '” enviada!', 'ok', 4000);
+    }).catch(function (e) {
+      btn.disabled = false; retake.disabled = false;
+      say('Falha de conexão ao enviar: ' + e.message + '. Tente de novo.', 'error');
+    });
+  });
 
-    function takePhoto() {
-      // Captura o frame atual da câmera (que está visível e ao vivo o tempo todo,
-      // então dá pra mirar antes de apertar o botão).
-      var canvas = document.createElement('canvas');
-      var maxDim = 1280;
-      var scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
-      canvas.width = Math.round(video.videoWidth * scale);
-      canvas.height = Math.round(video.videoHeight * scale);
-      var ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      pendingBlob = canvas.toDataURL('image/jpeg', 0.8);
-
-      shot.src = pendingBlob;
-      shot.style.display = 'block';
-      video.style.display = 'none';
-      document.getElementById('btnTakePhoto').style.display = 'none';
-      document.getElementById('btnSend').style.display = 'block';
-      document.getElementById('btnRetake').style.display = 'block';
-    }
-
-    function retakePhoto() {
-      resetPhotoUi();
-    }
-
-    function sendPhoto() {
-      if (!pendingBlob || !current) return;
-      var base64 = pendingBlob.split(',')[1];
-      document.getElementById('btnSend').disabled = true;
-      document.getElementById('btnRetake').disabled = true;
-      setStatus('Enviando foto...');
-
-      apiPost('uploadPhoto', { codProd: current.codProd, row: current.row, base64: base64 })
-        .then(function (res) {
-          document.getElementById('btnSend').disabled = false;
-          document.getElementById('btnRetake').disabled = false;
-          if (!res.ok) {
-            setStatus('Erro ao enviar: ' + res.error, 'error');
-            return;
-          }
-          setStatus('Foto enviada com sucesso!', 'success');
-          setTimeout(backToScan, 800);
-        })
-        .catch(function (err) {
-          document.getElementById('btnSend').disabled = false;
-          document.getElementById('btnRetake').disabled = false;
-          setStatus('Erro de rede: ' + err.message, 'error');
-        });
-    }
-
-    // start
-    if (EXEC_URL.indexOf('COLE_AQUI') !== -1) {
-      setStatus('Configuração pendente: defina EXEC_URL no código da página.', 'error');
-    } else {
-      startCamera();
-    }
-  </script>
+  startCamera();
+</script>
 </body>
 </html>
