@@ -49,6 +49,8 @@
   }
   .guide::before { top: -4px; left: -4px; border-right: 0; border-bottom: 0; border-radius: 12px 0 0 0; }
   .guide::after { bottom: -4px; right: -4px; border-left: 0; border-top: 0; border-radius: 0 0 12px 0; }
+  .guide.photo { border-width: 2px; border-radius: 4px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); }
+  .guide.photo::before, .guide.photo::after { border-radius: 0; }
   .flash {
     position: absolute; right: 10px; top: 10px; width: 46px; height: 46px; border-radius: 50%;
     border: none; background: rgba(0,0,0,0.55); color: #fff; font-size: 22px;
@@ -200,15 +202,17 @@
     var reviewing = s === 'review';
     shot.style.display = reviewing ? 'block' : 'none';
     video.style.display = reviewing ? 'none' : 'block';
-    guide.hidden = s !== 'scan';
-    $('camhint').hidden = s !== 'scan';
+    guide.hidden = !(s === 'scan' || s === 'product');
+    guide.classList.toggle('photo', s === 'product');
+    $('camhint').hidden = !(s === 'scan' || s === 'product');
+    $('camhint').textContent = s === 'product' ? 'A foto sai quadrada, igual ao quadro' : 'Coloque UM QR dentro do quadro';
 
     $('st1').className = s === 'scan' || s === 'search' ? 'on' : 'done';
     $('st2').className = s === 'product' ? 'on' : (s === 'review' ? 'done' : '');
     $('st3').className = s === 'review' ? 'on' : '';
 
     if (s === 'scan') { say('Aponte para o QR do produto…', 'info'); scheduleScan(); }
-    if (s === 'product') say('Produto encontrado. Enquadre e toque em “Tirar foto”.', 'ok');
+    if (s === 'product') say('Produto encontrado. Enquadre dentro do quadrado e toque em “Tirar foto”.', 'ok');
     if (s === 'review') say('Confira a foto e envie.', 'info');
     sizeGuide();
   }
@@ -248,7 +252,8 @@
     var cw = $('camwrap').clientWidth, ch = video.clientHeight || $('camwrap').clientHeight;
     if (!cw || !ch) return;
     var k = Math.min(cw / video.videoWidth, ch / video.videoHeight);
-    var side = Math.round(Math.min(video.videoWidth * k, video.videoHeight * k) * 0.68);
+    // QR: quadro de 68% do lado menor. Foto do produto: o quadrado inteiro (é o que será recortado).
+    var side = Math.round(Math.min(video.videoWidth * k, video.videoHeight * k) * (state === 'product' ? 1 : 0.68));
     guide.style.width = side + 'px';
     guide.style.height = side + 'px';
   }
@@ -366,10 +371,13 @@
   $('btnShoot').addEventListener('click', function () {
     var vw = video.videoWidth, vh = video.videoHeight;
     if (!vw) { say('A câmera ainda não está pronta.', 'error', 2500); return; }
-    var k = Math.min(1, 1600 / Math.max(vw, vh));
+    // Foto sempre quadrada: recorta o centro da imagem (mesma área do quadro na tela).
+    var side = Math.min(vw, vh);
+    var sx = Math.floor((vw - side) / 2), sy = Math.floor((vh - side) / 2);
+    var out = Math.min(side, 1400);
     var c = document.createElement('canvas');
-    c.width = Math.round(vw * k); c.height = Math.round(vh * k);
-    c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+    c.width = out; c.height = out;
+    c.getContext('2d').drawImage(video, sx, sy, side, side, 0, 0, out, out);
     pendingImg = c.toDataURL('image/jpeg', 0.85);
     shot.src = pendingImg;
     $('rname').textContent = current.nome || '(sem nome)';
